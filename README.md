@@ -12,7 +12,7 @@
 <img src='./docs/imgs/Screenshot_20250319_214019.png' width=200>
 </div>
 
-C9 takes inspiration from T9 to provide clicks using the numpad on Android feature phones. The primary features of the application include:
+C9 is a dual-cursor application that takes inspiration from T9 to provide clicks using the numpad on Android feature phones. The primary features of the application include:
 
 - 🤖 Android 8.0+ support
 - 🌎 Universal Android 11 compatibility via Shizuku as needed
@@ -22,7 +22,7 @@ C9 takes inspiration from T9 to provide clicks using the numpad on Android featu
 - 🔀 Translation of key presses into near-native taps, double taps, long press (and drag), scrolling, and zoom
 
 ## Overview
-Due to their different paradigms, gestures are mapped differently in each mode. While both modes can be enabled simultaneously, only one cursor can be active at a time. The following options can be configured, which affects scrolls and zooms in both modes:
+Because of their different navigation paradigms, each cursor mode maps gestures uniquely. While both modes can be enabled simultaneously, only one cursor can be active at a time. The following options can be configured, which affects scrolls and zooms in both modes:
 - Natural scrolling
 - Gesture visualizations
 - Gesture style
@@ -36,7 +36,7 @@ Due to their different paradigms, gestures are mapped differently in each mode. 
 <br />
 
 <div align="center">
-<img src='./docs/gifs/Screen_recording_20250319_004200.gif' width=200>
+<img src='./docs/gifs/Screen_recording_20250321_015105.gif' width=200>
 </div>
 
 <br />
