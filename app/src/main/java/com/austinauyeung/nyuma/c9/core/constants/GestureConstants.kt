@@ -21,10 +21,14 @@ object GestureConstants {
     const val MIN_SCROLL_MULTIPLIER = 0.3f
     const val MAX_SCROLL_MULTIPLIER = 0.7f
     const val DEFAULT_SCROLL_MULTIPLIER = 0.5f
+    const val USE_NATURAL_SCROLLING = false
 
     // Zoom
     const val ZOOM_DISTANCE_FACTOR = 0.15f
     const val ZOOM_DISTANCE_OFFSET = ZOOM_DISTANCE_FACTOR / 3
+
+    // Visualization
+    const val SHOW_GESTURE_VISUAL = true
 
     // Steps needed to maintain frame rate
     fun calculateSteps(duration: Long): Int {

@@ -11,7 +11,7 @@ object CursorConstants {
     // Accelerated speed
     const val MIN_ACCELERATION = 1
     const val MAX_ACCELERATION = 5
-    const val DEFAULT_ACCELERATION = 1
+    const val DEFAULT_ACCELERATION = 3
     const val DEFAULT_ACCELERATION_MULTIPLIER = 60
     const val ACCELERATION_THRESHOLD = 500L
 
@@ -24,5 +24,7 @@ object CursorConstants {
     private const val TARGET_FPS = 60
     const val FRAME_DURATION_MS = 1000f / TARGET_FPS
     const val OPACITY = 0.8f
+    const val CURSOR_WRAP_AROUND = false
 
+    const val TOGGLE_HOLD = false
 }

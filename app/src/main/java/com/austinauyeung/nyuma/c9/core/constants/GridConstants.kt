@@ -5,6 +5,8 @@ object GridConstants {
     const val MIN_LEVELS = 2
     const val MAX_LEVELS = 4
     const val DEFAULT_LEVELS = 3
+    const val PERSIST_OVERLAY = true
+    const val HIDE_NUMBERS = false
 
     val INITIAL_NUMBERS = arrayOf(
         arrayOf(1, 2, 3),

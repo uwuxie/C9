@@ -116,7 +116,7 @@ class StandardGestureStrategy(
         try {
             val settings = settingsFlow.value
 
-            Logger.d("StandardGestureStrategy: performing scroll from ($startX, $startY) to ($endX, $endY) ${settings.gestureDuration}")
+            Logger.d("StandardGestureStrategy: performing scroll from ($startX, $startY) to ($endX, $endY)")
 
             scrollPath.reset()
             scrollPath.moveTo(startX, startY)
