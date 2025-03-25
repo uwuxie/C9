@@ -5,6 +5,7 @@ import com.austinauyeung.nyuma.c9.common.domain.GestureStyle
 import com.austinauyeung.nyuma.c9.core.constants.CursorConstants
 import com.austinauyeung.nyuma.c9.core.constants.GestureConstants
 import com.austinauyeung.nyuma.c9.core.constants.GridConstants
+import com.austinauyeung.nyuma.c9.grid.domain.GridLineVisibility
 
 /**
  * Contains default values that can be modified by the user.
@@ -17,11 +18,13 @@ object Defaults {
         const val OVERLAY_OPACITY = GridConstants.DEFAULT_OPACITY
         const val PERSIST_OVERLAY = GridConstants.PERSIST_OVERLAY
         const val HIDE_NUMBERS = GridConstants.HIDE_NUMBERS
+        val GRID_LINE_VISIBILITY = GridLineVisibility.SHOW_ALL
         const val USE_NATURAL_SCROLLING = GestureConstants.USE_NATURAL_SCROLLING
         const val SHOW_GESTURE_VISUAL = GestureConstants.SHOW_GESTURE_VISUAL
         const val CURSOR_SPEED = CursorConstants.DEFAULT_SPEED
         const val CURSOR_ACCELERATION = CursorConstants.DEFAULT_ACCELERATION
         const val CURSOR_SIZE = CursorConstants.DEFAULT_SIZE
+        const val CURSOR_ACCELERATION_THRESHOLD = CursorConstants.DEFAULT_ACCELERATION_THRESHOLD
         const val GRID_ACTIVATION_KEY = KeyEvent.KEYCODE_POUND
         const val CURSOR_ACTIVATION_KEY = KeyEvent.KEYCODE_STAR
         const val CURSOR_WRAP_AROUND = CursorConstants.CURSOR_WRAP_AROUND

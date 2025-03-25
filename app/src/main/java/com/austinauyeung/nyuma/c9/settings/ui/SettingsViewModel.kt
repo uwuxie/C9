@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.austinauyeung.nyuma.c9.accessibility.service.OverlayAccessibilityService
 import com.austinauyeung.nyuma.c9.common.domain.GestureStyle
 import com.austinauyeung.nyuma.c9.core.util.Logger
+import com.austinauyeung.nyuma.c9.grid.domain.GridLineVisibility
 import com.austinauyeung.nyuma.c9.settings.domain.ControlScheme
 import com.austinauyeung.nyuma.c9.settings.domain.Defaults
 import com.austinauyeung.nyuma.c9.settings.domain.OverlaySettings
@@ -52,11 +53,13 @@ class SettingsViewModel(
                             overlayOpacity = settings.overlayOpacity,
                             persistOverlay = settings.persistOverlay,
                             hideNumbers = settings.hideNumbers,
+                            gridLineVisibility = settings.gridLineVisibility,
                             useNaturalScrolling = settings.useNaturalScrolling,
                             showGestureVisualization = settings.showGestureVisualization,
                             cursorSpeed = settings.cursorSpeed,
                             cursorAcceleration = settings.cursorAcceleration,
                             cursorSize = settings.cursorSize,
+                            cursorAccelerationThreshold = settings.cursorAccelerationThreshold,
                             gridActivationKey = settings.gridActivationKey,
                             cursorActivationKey = settings.cursorActivationKey,
                             controlScheme = settings.controlScheme,
@@ -103,11 +106,13 @@ class SettingsViewModel(
             overlayOpacity = _uiState.value.overlayOpacity,
             persistOverlay = _uiState.value.persistOverlay,
             hideNumbers = _uiState.value.hideNumbers,
+            gridLineVisibility = _uiState.value.gridLineVisibility,
             useNaturalScrolling = _uiState.value.useNaturalScrolling,
             showGestureVisualization = _uiState.value.showGestureVisualization,
             cursorSpeed = _uiState.value.cursorSpeed,
             cursorAcceleration = _uiState.value.cursorAcceleration,
             cursorSize = _uiState.value.cursorSize,
+            cursorAccelerationThreshold = _uiState.value.cursorAccelerationThreshold,
             gridActivationKey = _uiState.value.gridActivationKey,
             cursorActivationKey = _uiState.value.cursorActivationKey,
             controlScheme = _uiState.value.controlScheme,
@@ -160,6 +165,10 @@ class SettingsViewModel(
         updateSettings { it.copy(cursorSize = size) }
     }
 
+    fun updateCursorAccelerationThreshold(threshold: Long) {
+        updateSettings { it.copy(cursorAccelerationThreshold = threshold) }
+    }
+
     fun updateGridActivationKey(keyCode: Int) {
         updateSettings { it.copy(gridActivationKey = keyCode) }
     }
@@ -201,6 +210,10 @@ class SettingsViewModel(
         updateSettings { it.copy(allowPassthrough = allow) }
     }
 
+    fun updateGridLineVisibility(visibility: GridLineVisibility) {
+        updateSettings { it.copy(gridLineVisibility = visibility) }
+    }
+
     class Factory(
         private val settingsRepository: SettingsRepository,
     ) : ViewModelProvider.Factory {
@@ -222,6 +235,7 @@ data class SettingsUiState(
     val showInvalidSettingError: Boolean = false,
     val isServiceRunning: Boolean = false,
     val hideNumbers: Boolean = Defaults.Settings.HIDE_NUMBERS,
+    val gridLineVisibility: GridLineVisibility = Defaults.Settings.GRID_LINE_VISIBILITY,
     val useNaturalScrolling: Boolean = Defaults.Settings.USE_NATURAL_SCROLLING,
     val showGestureVisualization: Boolean = Defaults.Settings.SHOW_GESTURE_VISUAL,
     val showError: Boolean = false,
@@ -229,6 +243,7 @@ data class SettingsUiState(
     val cursorSpeed: Int = Defaults.Settings.CURSOR_SPEED,
     val cursorAcceleration: Int = Defaults.Settings.CURSOR_ACCELERATION,
     val cursorSize: Int = Defaults.Settings.CURSOR_SIZE,
+    val cursorAccelerationThreshold: Long = Defaults.Settings.CURSOR_ACCELERATION_THRESHOLD,
     val gridActivationKey: Int = Defaults.Settings.GRID_ACTIVATION_KEY,
     val cursorActivationKey: Int = Defaults.Settings.CURSOR_ACTIVATION_KEY,
     val controlScheme: ControlScheme = Defaults.Settings.CONTROL_SCHEME,
