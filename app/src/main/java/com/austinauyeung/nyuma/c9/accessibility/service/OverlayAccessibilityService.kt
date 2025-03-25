@@ -1,6 +1,11 @@
 package com.austinauyeung.nyuma.c9.accessibility.service
 
 import android.accessibilityservice.AccessibilityService
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
@@ -26,7 +31,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /**
  * Receives key events, displays overlays, and performs gestures.
@@ -42,7 +49,9 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
     override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
 
     private lateinit var serviceJob: Job
-    private lateinit var serviceScope: CoroutineScope
+    private lateinit var backgroundScope: CoroutineScope
+    private lateinit var mainScope: CoroutineScope
+    private lateinit var ioScope: CoroutineScope
 
     private val coroutineExceptionHandler =
         CoroutineExceptionHandler { _, exception ->
@@ -54,6 +63,27 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
     private lateinit var serviceManager: AccessibilityServiceManager
     private lateinit var uiManager: OverlayUIManager
 
+    private val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                ACTION_ACTIVATE_GRID -> {
+                    ioScope.launch {
+                        val settings = C9.getInstance().settingsRepository.getSettings().first()
+                        if (settings.gridActivationKey == OverlaySettings.KEY_NONE) return@launch
+                        serviceManager.activateGridMode()
+                    }
+                }
+                ACTION_ACTIVATE_CURSOR -> {
+                    ioScope.launch {
+                        val settings = C9.getInstance().settingsRepository.getSettings().first()
+                        if (settings.cursorActivationKey == OverlaySettings.KEY_NONE) return@launch
+                        serviceManager.activateCursorMode()
+                    }
+                }
+            }
+        }
+    }
+
     companion object {
         private var instance: OverlayAccessibilityService? = null
 
@@ -63,6 +93,29 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
 
         fun showToast(message: String) {
             instance?.showToastInternal(message)
+        }
+
+        const val ACTION_ACTIVATE_GRID = "com.austinauyeung.nyuma.c9.ACTION_ACTIVATE_GRID"
+        const val ACTION_ACTIVATE_CURSOR = "com.austinauyeung.nyuma.c9.ACTION_ACTIVATE_CURSOR"
+
+        fun activateGridCursor(context: Context) {
+            val intent = Intent(ACTION_ACTIVATE_GRID)
+            intent.setPackage(context.packageName)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.sendBroadcast(intent, null)
+            } else {
+                context.sendBroadcast(intent)
+            }
+        }
+
+        fun activateStandardCursor(context: Context) {
+            val intent = Intent(ACTION_ACTIVATE_CURSOR)
+            intent.setPackage(context.packageName)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.sendBroadcast(intent, null)
+            } else {
+                context.sendBroadcast(intent)
+            }
         }
     }
 
@@ -85,11 +138,9 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
             lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
 
             serviceJob = SupervisorJob()
-            val backgroundScope =
-                CoroutineScope(Dispatchers.Default + serviceJob + coroutineExceptionHandler)
-            val mainScope =
-                CoroutineScope(Dispatchers.Main + serviceJob + coroutineExceptionHandler)
-            val ioScope = CoroutineScope(Dispatchers.IO + serviceJob + coroutineExceptionHandler)
+            backgroundScope = CoroutineScope(Dispatchers.Default + serviceJob + coroutineExceptionHandler)
+            mainScope = CoroutineScope(Dispatchers.Main + serviceJob + coroutineExceptionHandler)
+            ioScope = CoroutineScope(Dispatchers.IO + serviceJob + coroutineExceptionHandler)
 
             val settingsFlow = C9.getInstance().settingsRepository.getSettings().stateIn(
                 scope = ioScope,
@@ -126,6 +177,17 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
             )
             uiManager.initialize()
 
+            val filter = IntentFilter().apply {
+                addAction(ACTION_ACTIVATE_GRID)
+                addAction(ACTION_ACTIVATE_CURSOR)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(receiver, filter)
+            }
+
             lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
             Logger.i("Overlay accessibility service connected")
@@ -133,7 +195,6 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
             Logger.e("Error initializing service", e)
             if (!::serviceJob.isInitialized) {
                 serviceJob = SupervisorJob()
-                serviceScope = CoroutineScope(Dispatchers.Default + serviceJob)
             }
         }
     }
@@ -159,8 +220,16 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
     override fun onDestroy() {
         instance = null
         try {
-            if (::serviceScope.isInitialized) {
-                serviceScope.cancel("Service destroyed")
+            if (::backgroundScope.isInitialized) {
+                backgroundScope.cancel("Service destroyed")
+            }
+
+            if (::mainScope.isInitialized) {
+                mainScope.cancel("Service destroyed")
+            }
+
+            if (::ioScope.isInitialized) {
+                ioScope.cancel("Service destroyed")
             }
 
             if (::serviceManager.isInitialized) {
@@ -169,6 +238,12 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
 
             if (::uiManager.isInitialized) {
                 uiManager.cleanup()
+            }
+
+            try {
+                unregisterReceiver(receiver)
+            } catch (e: Exception) {
+                Logger.e("Error unregistering receiver", e)
             }
 
             mainHandler.removeCallbacksAndMessages(null)
