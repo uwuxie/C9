@@ -24,7 +24,11 @@ C9 is a dual-cursor application that takes inspiration from T9 to provide clicks
 ## Table of Contents
 - [Overview](#overview)
   - [Grid Cursor](#grid-cursor)
+    - [Instructions](#instructions)
+    - [Usage](#usage)
   - [Standard Cursor](#standard-cursor)
+    - [Instructions](#instructions-1)
+    - [Usage](#usage-1)
 - [Installation](#installation)
 - [Known Issues](#known-issues)
 - [FAQs](#faqs)
