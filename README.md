@@ -170,7 +170,7 @@ Note that unless your device is rooted, you will need to restart the Shizuku ser
 
 ## FAQs
 ### Where can I make feature suggestions or report bugs?
-Thanks for using and testing C9! You can use the [issues](https://github.com/austinauyeung/C9/issues) tab for both. For bugs, please provide logs using the built-in logger or `adb logcat C9App:V *:S`.
+Thanks for using and testing C9! You can use the [issues](https://github.com/austinauyeung/C9/issues) tab for both. For bugs, please provide logs using the built-in logger under `C9 > Debug Options > Log Screen` with the cursor active or `adb logcat C9App:V *:S`.
 
 ### How else can I contribute?
 Please feel free to submit a pull request, create a video walkthrough, or provide anything else you think would be helpful!
