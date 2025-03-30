@@ -9,6 +9,7 @@ import android.os.Build
 import android.view.KeyEvent
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -17,6 +18,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import com.austinauyeung.nyuma.c9.C9
 import com.austinauyeung.nyuma.c9.accessibility.coordinator.AccessibilityServiceManager
+import com.austinauyeung.nyuma.c9.accessibility.coordinator.OverlayModeCoordinator
 import com.austinauyeung.nyuma.c9.accessibility.ui.OverlayUIManager
 import com.austinauyeung.nyuma.c9.common.domain.OrientationHandler
 import com.austinauyeung.nyuma.c9.core.logs.Logger
@@ -56,6 +58,23 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
     private lateinit var serviceManager: AccessibilityServiceManager
     private lateinit var uiManager: OverlayUIManager
     private lateinit var orientationHandler: OrientationHandler
+
+    private var lastCursorPosition: Offset? = null
+    private var lastOverlayType: OverlayModeCoordinator.OverlayMode? = null
+    private var hidingCursor: Boolean = false
+
+    // Taking some guesses here and may need to revise
+    private val submissionKeys = setOf(
+        KeyEvent.KEYCODE_ENTER,
+        KeyEvent.KEYCODE_NUMPAD_ENTER,
+        KeyEvent.KEYCODE_BUTTON_START,
+        KeyEvent.KEYCODE_CALL,
+        KeyEvent.KEYCODE_SEARCH
+    )
+
+    fun setHidingCursor(hiding: Boolean) {
+        hidingCursor = hiding
+    }
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -171,27 +190,45 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
         }
     }
 
+    private fun autoHideCursor() {
+        if (serviceManager.currentGrid.value != null) {
+            lastOverlayType = OverlayModeCoordinator.OverlayMode.GRID
+        } else if (serviceManager.currentCursor.value != null) {
+            lastOverlayType = OverlayModeCoordinator.OverlayMode.CURSOR
+            serviceManager.currentCursor.value?.let { cursor ->
+                lastCursorPosition = Offset(cursor.position.x, cursor.position.y)
+            }
+        }
+
+        Logger.d("Text field focused, hiding cursor overlays")
+        forceHideAllOverlays()
+        hidingCursor = true
+    }
+
+    private fun restoreCursor() {
+        when (lastOverlayType) {
+            OverlayModeCoordinator.OverlayMode.GRID -> {
+                serviceManager.activateGridMode()
+            }
+
+            OverlayModeCoordinator.OverlayMode.CURSOR -> {
+                serviceManager.activateCursorMode(lastCursorPosition)
+            }
+
+            else -> {}
+        }
+        lastCursorPosition = null
+        lastOverlayType = null
+        hidingCursor = false
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val settingsFlow = C9.getInstance().getSettingsFlow()
-
         if (settingsFlow.value.hideOnTextField) {
             event?.let{
-                when (event.eventType) {
-                    AccessibilityEvent.TYPE_VIEW_FOCUSED -> {
-                        val source = event.source
-                        if (source != null) {
-                            try {
-                                val isTextField = source.className?.contains("EditText") == true || source.isEditable
-
-                                if (isTextField) {
-                                    Logger.d("Text field focused, hiding cursor overlays")
-                                    forceHideAllOverlays()
-                                }
-                            } finally {}
-                        }
-                    }
-
-                    else -> {}
+                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                    val isKeyboardActivated = event.className?.toString() == "android.inputmethodservice.SoftInputWindow"
+                    if (isKeyboardActivated && !hidingCursor) autoHideCursor()
                 }
             }
         }
@@ -201,6 +238,14 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
     override fun onInterrupt() {}
 
     override fun onKeyEvent(event: KeyEvent?): Boolean {
+        if (hidingCursor) {
+            if (event?.keyCode in submissionKeys && event?.action == KeyEvent.ACTION_UP) {
+                Logger.d("Enter key pressed, assuming form submission")
+                restoreCursor()
+                return false
+            }
+        }
+
         return try {
             serviceManager.handleKeyEvent(event)
         } catch (e: Exception) {
