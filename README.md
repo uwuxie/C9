@@ -45,13 +45,17 @@ The following options can be configured, which affects scrolls and zooms in both
 - Natural scrolling
 - Gesture visualizations
 - Gesture style
-  - `Fixed`: gestures are controlled and fixed distance
-  - `Inertia`: gestures resemble touchscreen flicks
+  - `Fixed`: Gestures are controlled and fixed distance.
+  - `Inertia`: Gestures resemble touchscreen flicks.
 - Gesture duration
 - Scroll distance
 
 Additionally, the following options can be configured to adjust the behavior of the cursors:
 - Auto-hide in text fields
+
+The following options cannot be configured but are enabled:
+- Continuous scrolling
+  - Regardless of the gesture style used for single scrolls, continuous scrolling will use the `Fixed` gesture style.
 
 ### Grid Cursor
 <br />
@@ -174,7 +178,7 @@ Install using adb:
 ```
 
 ### Additional installation for Android 11
-If you are on Android 11, please first try the application as-is. If gestures cannot be dispatched successfully, or if you have had trouble in the past with other cursor apps, you will need to [install Shizuku](https://shizuku.rikka.app/guide/setup/) to use this application. Once installed, navigate to, and enable, `C9 > Debug Options > Enable Shizuku Integration`.
+If you are on Android 11, please first try the application as-is. If gestures cannot be dispatched successfully, or if you have had trouble in the past with other cursor apps, you will need to [install Shizuku](https://shizuku.rikka.app/guide/setup/) to use this application. Once installed, navigate to, and enable, `C9 > Developer Options > Enable Shizuku Integration`.
 
 Note that unless your device is rooted, you will need to restart the Shizuku service upon reboot.
 
@@ -184,7 +188,7 @@ Note that unless your device is rooted, you will need to restart the Shizuku ser
 <img src='./docs/gifs/Screen_recording_20250328_195409.gif' width=200>
 </div>
 
-If gestures do not work as expected, logs can be generated to help identify and fix any issues. Navigate to `C9 > Debug Options > Log Screen`, activate the cursor, and perform the corresponding gesture(s). Copy the logs and submit a GitHub issue. The example logs below correspond to the screen recording above.
+If gestures do not work as expected, logs can be generated to help identify and fix any issues. Navigate to `C9 > Developer Options > Log Screen`, activate the cursor, and perform the corresponding gesture(s). Copy the logs and submit a GitHub issue. The example logs below correspond to the screen recording above.
 
 ```
 --- SYSTEM INFORMATION ---
@@ -236,10 +240,10 @@ If you are unable to deactivate the cursor, clear the activation key, which disa
 ## Known Issues
 - On the Vortex V3, the numpad backlight may not function when the cursor is active.
   - This is likely due to the cursors' interception of key presses. There is an experimental setting "Allow Passthrough" that may fix this at the expense of unintended behavior in the underlying application.
-- Scrolling inconsistencies between applications (currently being investigated):
-  - When using a gesture style of `Fixed`, some applications stutter at the end of the scroll.
-  - When using a gesture style of `Inertia`, some applications show unexpected behavior when scrolling continuously.
-- The cursor does not adapt to landscape orientation (a fix is planned for v1.3).
+- Scroll gestures that are made in quick succession and are overlapping may behave unexpectedly.
+  - To perform multiple scrolls, wait for the previous scroll to complete or hold the scroll button for continuous scrolling.
+- With Shizuku enabled and a `Fixed` gesture style, pull to refresh (e.g. scrolling down at the top of a page inside a browser that supports this feature) does not work.
+  - This is currently unavoidable due to the implementation of this gesture style with Shizuku. Use either long press and drag or the `Inertia` gesture style.
 
 ## FAQs
 ### Where can I make feature suggestions or report bugs?
