@@ -12,10 +12,9 @@ import com.austinauyeung.nyuma.c9.cursor.handler.CursorActionHandler
 import com.austinauyeung.nyuma.c9.cursor.handler.CursorStateManager
 import com.austinauyeung.nyuma.c9.gesture.api.GestureManager
 import com.austinauyeung.nyuma.c9.gesture.shizuku.ShizukuGestureStrategy
-import com.austinauyeung.nyuma.c9.gesture.standard.StandardGestureStrategy
+import com.austinauyeung.nyuma.c9.gesture.standard.DefaultGestureStrategy
 import com.austinauyeung.nyuma.c9.gesture.ui.GesturePath
 import com.austinauyeung.nyuma.c9.grid.domain.Grid
-import com.austinauyeung.nyuma.c9.grid.domain.GridNavigator
 import com.austinauyeung.nyuma.c9.grid.handler.GridActionHandler
 import com.austinauyeung.nyuma.c9.grid.handler.GridStateManager
 import com.austinauyeung.nyuma.c9.settings.domain.OverlaySettings
@@ -39,7 +38,6 @@ class AccessibilityServiceManager(
     private lateinit var gestureManager: GestureManager
     private lateinit var cursorStateManager: CursorStateManager
     private lateinit var cursorActionHandler: CursorActionHandler
-    private lateinit var gridNavigator: GridNavigator
     private lateinit var gridStateManager: GridStateManager
     private lateinit var gridActionHandler: GridActionHandler
     private lateinit var modeCoordinator: OverlayModeCoordinator
@@ -58,7 +56,7 @@ class AccessibilityServiceManager(
 
             modeCoordinator = OverlayModeCoordinator()
 
-            val standardStrategy = StandardGestureStrategy(service, settingsFlow)
+            val defaultStrategy = DefaultGestureStrategy(service, settingsFlow)
             val shizukuStrategy = ShizukuGestureStrategy(
                 mainScope = mainScope,
                 settingsFlow = settingsFlow
@@ -66,7 +64,7 @@ class AccessibilityServiceManager(
             C9.getInstance().setShizukuGestureStrategy(shizukuStrategy)
 
             gestureManager = GestureManager(
-                standardStrategy,
+                defaultStrategy,
                 shizukuStrategy,
                 settingsFlow,
                 screenDimensionsFlow,
@@ -74,9 +72,7 @@ class AccessibilityServiceManager(
             )
 
             // Grid components
-            gridNavigator = GridNavigator(screenDimensionsFlow)
             gridStateManager = GridStateManager(
-                gridNavigator,
                 gestureManager,
                 settingsFlow,
                 screenDimensionsFlow,
@@ -104,7 +100,8 @@ class AccessibilityServiceManager(
                 settingsFlow,
                 backgroundScope,
                 modeCoordinator,
-                { orientationHandler.getCurrentOrientation() }
+                { orientationHandler.getCurrentOrientation() },
+                screenDimensionsFlow
             )
 
             // Listen for orientation changes
@@ -149,6 +146,19 @@ class AccessibilityServiceManager(
         }
     }
 
+    fun resetGrid(): Boolean {
+        try {
+            if (modeCoordinator.activeMode.value == OverlayModeCoordinator.OverlayMode.GRID) {
+                gridStateManager.resetToMainGrid()
+                return true
+            }
+            return false
+        } catch (e: Exception) {
+            Logger.e("Error resetting grid mode", e)
+            return false
+        }
+    }
+
     fun activateCursorMode(position: Offset? = null): Boolean {
         try {
             if (modeCoordinator.requestActivation(OverlayModeCoordinator.OverlayMode.CURSOR)) {
@@ -163,6 +173,19 @@ class AccessibilityServiceManager(
             return false
         } catch (e: Exception) {
             Logger.e("Error activating cursor mode", e)
+            return false
+        }
+    }
+
+    fun toggleCursorScroll(): Boolean {
+        try {
+            if (modeCoordinator.activeMode.value == OverlayModeCoordinator.OverlayMode.CURSOR) {
+                cursorStateManager.toggleScrollMode()
+                return true
+            }
+            return false
+        } catch (e: Exception) {
+            Logger.e("Error toggling cursor scroll", e)
             return false
         }
     }

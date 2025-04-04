@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.austinauyeung.nyuma.c9.common.domain.ScreenEdgeBehavior
 import com.austinauyeung.nyuma.c9.core.constants.CursorConstants
 import com.austinauyeung.nyuma.c9.settings.domain.ControlScheme
 import com.austinauyeung.nyuma.c9.settings.domain.OverlaySettings
@@ -164,7 +165,7 @@ fun CursorSettingsScreen(
                 )
 
                 ClearKeyPreferenceItem(
-                    isEnabled = uiState.cursorActivationKey != OverlaySettings.KEY_NONE,
+                    isEnabled = true,
                     mode = "standard cursor",
                     onClearKey = {
                         viewModel.requestHideAllOverlays()
@@ -208,15 +209,65 @@ fun CursorSettingsScreen(
                     },
                 )
 
-                SwitchPreferenceItem(
-                    title = "Cursor Wrap Around",
-                    subtitle = "Allow cursor to wrap around edges of the screen",
-                    checked = uiState.cursorWrapAround,
-                    onCheckedChange = { value ->
+                DropdownPreferenceItem(
+                    title = "Screen Edge Behavior",
+                    subtitle =
+                    when (uiState.cursorEdgeBehavior) {
+                        ScreenEdgeBehavior.NONE -> "Cursor remains at edge"
+                        ScreenEdgeBehavior.WRAP_AROUND -> "Cursor wraps to opposite side"
+                        ScreenEdgeBehavior.AUTO_SCROLL -> "Cursor slowly scrolls in edge direction"
+                    },
+                    selectedOption = uiState.cursorEdgeBehavior,
+                    options =
+                    listOf(
+                        ScreenEdgeBehavior.NONE to "None",
+                        ScreenEdgeBehavior.WRAP_AROUND to "Wrap",
+                        ScreenEdgeBehavior.AUTO_SCROLL to "Scroll"
+                    ),
+                    onOptionSelected = { value ->
                         viewModel.updatePreference(value) { settings, v ->
-                            settings.copy(cursorWrapAround = v)
+                            settings.copy(cursorEdgeBehavior = v)
                         }
                     },
+                )
+
+                SliderPreferenceItem(
+                    title = "Cursor Speed",
+                    value = uiState.cursorSpeed.toFloat(),
+                    valueRange = CursorConstants.MIN_SPEED.toFloat()..CursorConstants.MAX_SPEED.toFloat(),
+                    valueText = uiState.cursorSpeed.toString(),
+                    onValueChange = { value ->
+                        viewModel.updatePreference(value) { settings, v ->
+                            settings.copy(cursorSpeed = v.toInt())
+                        }
+                    },
+                    steps = 8,
+                )
+
+                SliderPreferenceItem(
+                    title = "Cursor Acceleration",
+                    value = uiState.cursorAcceleration.toFloat(),
+                    valueRange = CursorConstants.MIN_ACCELERATION.toFloat()..CursorConstants.MAX_ACCELERATION.toFloat(),
+                    valueText = "${uiState.cursorAcceleration}${if (uiState.cursorAcceleration == 1) " (no acceleration)" else ""}",
+                    onValueChange = { value ->
+                        viewModel.updatePreference(value) { settings, v ->
+                            settings.copy(cursorAcceleration = v.toInt())
+                        }
+                    },
+                    steps = 8,
+                )
+
+                SliderPreferenceItem(
+                    title = "Cursor Acceleration Threshold",
+                    value = uiState.cursorAccelerationThreshold.toFloat(),
+                    valueRange = CursorConstants.MIN_ACCELERATION_THRESHOLD.toFloat()..CursorConstants.MAX_ACCELERATION_THRESHOLD.toFloat(),
+                    valueText = "${uiState.cursorAccelerationThreshold} ms",
+                    onValueChange = { value ->
+                        viewModel.updatePreference(value) { settings, v ->
+                            settings.copy(cursorAccelerationThreshold = v.toLong())
+                        }
+                    },
+                    steps = 3,
                 )
 
 //                SwitchPreferenceItem(
@@ -233,85 +284,27 @@ fun CursorSettingsScreen(
 
             PreferenceCategory(title = "Appearance") {
                 SliderPreferenceItem(
-                    title = "Cursor Speed",
-                    value = uiState.cursorSpeed.toFloat(),
-                    valueRange = CursorConstants.MIN_SPEED.toFloat()..CursorConstants.MAX_SPEED.toFloat(),
-                    valueText =
-                    when (uiState.cursorSpeed) {
-                        1 -> "Slowest"
-                        2 -> "Slow"
-                        3 -> "Medium"
-                        4 -> "Fast"
-                        else -> "Fastest"
-                    },
-                    onValueChange = { value ->
-                        viewModel.updatePreference(value) { settings, v ->
-                            settings.copy(cursorSpeed = v.toInt())
-                        }
-                    },
-                    steps = 3,
-                )
-
-                SliderPreferenceItem(
-                    title = "Cursor Acceleration",
-                    value = uiState.cursorAcceleration.toFloat(),
-                    valueRange = CursorConstants.MIN_ACCELERATION.toFloat()..CursorConstants.MAX_ACCELERATION.toFloat(),
-                    valueText =
-                    when (uiState.cursorAcceleration) {
-                        1 -> "None"
-                        2 -> "Light"
-                        3 -> "Medium"
-                        4 -> "Strong"
-                        else -> "Maximum"
-                    },
-                    onValueChange = { value ->
-                        viewModel.updatePreference(value) { settings, v ->
-                            settings.copy(cursorAcceleration = v.toInt())
-                        }
-                    },
-                    steps = 3,
-                )
-
-                SliderPreferenceItem(
-                    title = "Cursor Acceleration Threshold",
-                    value = uiState.cursorAccelerationThreshold.toFloat(),
-                    valueRange = CursorConstants.MIN_ACCELERATION_THRESHOLD.toFloat()..CursorConstants.MAX_ACCELERATION_THRESHOLD.toFloat(),
-                    valueText =
-                    when (uiState.cursorAccelerationThreshold) {
-                        100L -> "Fastest"
-                        200L -> "Fast"
-                        300L -> "Medium"
-                        400L -> "Slow"
-                        500L -> "Slowest"
-                        else -> ""
-                    },
-                    onValueChange = { value ->
-                        viewModel.updatePreference(value) { settings, v ->
-                            settings.copy(cursorAccelerationThreshold = v.toLong())
-                        }
-                    },
-                    steps = 3,
-                )
-
-                SliderPreferenceItem(
                     title = "Cursor Size",
                     value = uiState.cursorSize.toFloat(),
                     valueRange = CursorConstants.MIN_SIZE.toFloat()..CursorConstants.MAX_SIZE.toFloat(),
-                    valueText =
-                    when (uiState.cursorSize) {
-                        1 -> "Smallest"
-                        2 -> "Small"
-                        3 -> "Medium"
-                        4 -> "Large"
-                        5 -> "Largest"
-                        else -> ""
-                    },
+                    valueText = uiState.cursorSize.toString(),
                     onValueChange = { value ->
                         viewModel.updatePreference(value) { settings, v ->
                             settings.copy(cursorSize = v.toInt())
                         }
                     },
-                    steps = 3,
+                    steps = 8,
+                )
+
+                SwitchPreferenceItem(
+                    title = "Smooth Cursor Corners",
+                    subtitle = "Round out the corners of the cursor",
+                    checked = uiState.roundedCursorCorners,
+                    onCheckedChange = { value ->
+                        viewModel.updatePreference(value) { settings, v ->
+                            settings.copy(roundedCursorCorners = v)
+                        }
+                    },
                 )
             }
         }

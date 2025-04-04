@@ -2,7 +2,10 @@ package com.austinauyeung.nyuma.c9.cursor.handler
 
 import androidx.compose.ui.geometry.Offset
 import com.austinauyeung.nyuma.c9.common.domain.ScreenDimensions
+import com.austinauyeung.nyuma.c9.common.domain.ScreenEdge
+import com.austinauyeung.nyuma.c9.common.domain.ScreenEdgeBehavior
 import com.austinauyeung.nyuma.c9.core.constants.CursorConstants
+import com.austinauyeung.nyuma.c9.core.constants.GestureConstants
 import com.austinauyeung.nyuma.c9.core.logs.Logger
 import com.austinauyeung.nyuma.c9.cursor.domain.CursorDirection
 import com.austinauyeung.nyuma.c9.cursor.domain.CursorState
@@ -17,8 +20,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import kotlin.math.pow
-import kotlin.math.sqrt
 
 /**
  * Manages the cursor state, including position, visibility and mode.
@@ -114,21 +115,18 @@ class CursorStateManager(
     fun calculateFrameSpeed(timeHeld: Long): Float {
         val dimensions = dimensionsFlow.value
         val settings = settingsFlow.value
-        val currentExponent = settings.cursorSpeed.toFloat().pow(CursorConstants.DEFAULT_EXPONENT)
-        val maxExponent = CursorConstants.MAX_SPEED.toFloat().pow(CursorConstants.DEFAULT_EXPONENT)
-        val baseSpeed = CursorConstants.DEFAULT_SPEED_MULTIPLIER * currentExponent
-
-        val totalPixels = dimensions.width * dimensions.height
-        val screenScaleFactor = sqrt(totalPixels.toFloat()) / 1000f
+        val baseSpeed = settings.cursorSpeed.toFloat() * CursorConstants.DEFAULT_SPEED_MULTIPLIER
+        val acceleratedSpeed = CursorConstants.MAX_SPEED.toFloat() * CursorConstants.DEFAULT_ACCELERATION_MULTIPLIER
+        val currentSpeed = CursorConstants.DEFAULT_SPEED_MULTIPLIER * baseSpeed
 
         val speed = if (timeHeld > settings.cursorAccelerationThreshold) {
-            baseSpeed + (maxExponent * CursorConstants.DEFAULT_ACCELERATION_MULTIPLIER - currentExponent * CursorConstants.DEFAULT_SPEED_MULTIPLIER) * (settings.cursorAcceleration - 1) / (CursorConstants.MAX_ACCELERATION - CursorConstants.MIN_ACCELERATION)
+            currentSpeed + (acceleratedSpeed - baseSpeed) * (settings.cursorAcceleration - 1) / (CursorConstants.MAX_ACCELERATION - CursorConstants.MIN_ACCELERATION)
         } else {
-            baseSpeed
+            currentSpeed
         }
 
         // Pixels per second * seconds per frame = pixels per frame
-        val frameSpeed = speed * (CursorConstants.FRAME_DURATION_MS / 1000f) * screenScaleFactor
+        val frameSpeed = speed * (CursorConstants.FRAME_DURATION_MS / 1000f) * dimensions.getScreenScaleFactor()
 
         return frameSpeed
     }
@@ -153,21 +151,35 @@ class CursorStateManager(
         val newX = currentPosition.x + delta.x
         val newY = currentPosition.y + delta.y
 
-        return if (settings.cursorWrapAround) {
-            Offset(
-                x = when {
-                    newX < 0 -> dimensions.width.toFloat()
-                    newX > dimensions.width -> 0f
-                    else -> newX
-                },
-                y = when {
-                    newY < 0 -> dimensions.height.toFloat()
-                    newY > dimensions.height -> 0f
-                    else -> newY
-                }
-            )
-        } else {
-            dimensions.constrainToBounds(newX, newY).let { (x, y) -> Offset(x, y) }
+        return when (settings.cursorEdgeBehavior) {
+            ScreenEdgeBehavior.WRAP_AROUND -> {
+                Offset(
+                    x = when {
+                        newX < 0 -> dimensions.width.toFloat()
+                        newX > dimensions.width -> 0f
+                        else -> newX
+                    },
+                    y = when {
+                        newY < 0 -> dimensions.height.toFloat()
+                        newY > dimensions.height -> 0f
+                        else -> newY
+                    }
+                )
+            }
+
+            else -> dimensions.constrainToBounds(newX, newY).let { (x, y) -> Offset(x, y) }
         }
+    }
+
+    fun checkEdge(direction: CursorDirection, position: Offset): ScreenEdge {
+        val dimensions = dimensionsFlow.value
+        val threshold = GestureConstants.SCREEN_EDGE_THRESHOLD
+
+        if (direction == CursorDirection.UP && position.y <= dimensions.height * threshold) return ScreenEdge.TOP
+        if (direction == CursorDirection.DOWN && position.y >= dimensions.height * (1 - threshold)) return ScreenEdge.BOTTOM
+        if (direction == CursorDirection.LEFT && position.x <= dimensions.width * threshold) return ScreenEdge.LEFT
+        if (direction == CursorDirection.RIGHT && position.x >= dimensions.width * (1 - threshold)) return ScreenEdge.RIGHT
+
+        return ScreenEdge.NONE
     }
 }

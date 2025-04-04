@@ -6,10 +6,10 @@ import android.view.InputDevice
 import android.view.InputEvent
 import android.view.MotionEvent
 import com.austinauyeung.nyuma.c9.common.domain.GestureStyle
-import com.austinauyeung.nyuma.c9.common.domain.ScrollDirection
 import com.austinauyeung.nyuma.c9.core.constants.GestureConstants
 import com.austinauyeung.nyuma.c9.core.logs.Logger
 import com.austinauyeung.nyuma.c9.core.service.ShizukuServiceConnection
+import com.austinauyeung.nyuma.c9.gesture.api.GestureCompletionListener
 import com.austinauyeung.nyuma.c9.gesture.api.GestureStrategy
 import com.austinauyeung.nyuma.c9.settings.domain.OverlaySettings
 import kotlinx.coroutines.CoroutineScope
@@ -109,7 +109,9 @@ class ShizukuGestureStrategy(
         startY: Float,
         endX: Float,
         endY: Float,
-        forceFixedScroll: Boolean
+        forceFixedScroll: Boolean,
+        duration: Long,
+        completionListener: GestureCompletionListener?
     ): Boolean {
         if (!isAvailable()) return false
 
@@ -118,7 +120,6 @@ class ShizukuGestureStrategy(
         try {
             mainScope.launch {
                 val downTime = SystemClock.uptimeMillis()
-                val duration = settingsFlow.value.gestureDuration
                 val steps = GestureConstants.calculateSteps(duration)
 
                 // Initial touch down event
@@ -174,11 +175,14 @@ class ShizukuGestureStrategy(
                     injectEvent(upEvent)
                     upEvent.recycle()
                 }
+
+                completionListener?.onGestureCompleted(true)
             }
 
             return true
         } catch (e: Exception) {
             Logger.e("Error performing scroll via Shizuku", e)
+            completionListener?.onGestureCompleted(true)
             return false
         }
     }
@@ -188,7 +192,8 @@ class ShizukuGestureStrategy(
         startX1: Float, startY1: Float,
         startX2: Float, startY2: Float,
         endX1: Float, endY1: Float,
-        endX2: Float, endY2: Float
+        endX2: Float, endY2: Float,
+        completionListener: GestureCompletionListener?
     ): Boolean {
         if (!isAvailable()) return false
 
@@ -318,9 +323,11 @@ class ShizukuGestureStrategy(
                     }
                 }
             }
+            completionListener?.onGestureCompleted(true)
             return true
         } catch (e: Exception) {
             Logger.e("Error performing scroll via Shizuku", e)
+            completionListener?.onGestureCompleted(true)
             return false
         }
     }

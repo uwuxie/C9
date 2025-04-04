@@ -50,6 +50,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.austinauyeung.nyuma.c9.BuildConfig
 import com.austinauyeung.nyuma.c9.R
+import com.austinauyeung.nyuma.c9.common.domain.AutoHideDetection
 import com.austinauyeung.nyuma.c9.common.domain.GestureStyle
 import com.austinauyeung.nyuma.c9.core.constants.GestureConstants
 import com.austinauyeung.nyuma.c9.core.service.ShizukuServiceConnection
@@ -116,9 +117,9 @@ fun SettingsScreen(
                     title = "Grid Cursor",
                     subtitle =
                     if (uiState.gridActivationKey == OverlaySettings.KEY_NONE) {
-                        "Disabled"
+                        "Unmapped"
                     } else {
-                        "Enabled"
+                        "Mapped"
                     },
                     onClick = onNavigateToGridSettings,
                 )
@@ -129,7 +130,7 @@ fun SettingsScreen(
                     if (uiState.cursorActivationKey == OverlaySettings.KEY_NONE) {
                         "Disabled"
                     } else {
-                        "Enabled"
+                        "Mapped"
                     },
                     onClick = onNavigateToCursorSettings,
                 )
@@ -145,17 +146,6 @@ fun SettingsScreen(
                             settings.copy(useNaturalScrolling = v)
                         }
                     }
-                )
-
-                SwitchPreferenceItem(
-                    title = "Gesture Visualization",
-                    subtitle = "Show gestures on screen",
-                    checked = uiState.showGestureVisualization,
-                    onCheckedChange = { value ->
-                        viewModel.updatePreference(value) { settings, v ->
-                            settings.copy(showGestureVisualization = v)
-                        }
-                    },
                 )
 
                 DropdownPreferenceItem(
@@ -182,15 +172,7 @@ fun SettingsScreen(
                     title = "Gesture Duration",
                     value = uiState.gestureDuration.toFloat(),
                     valueRange = GestureConstants.MIN_GESTURE_DURATION.toFloat()..GestureConstants.MAX_GESTURE_DURATION.toFloat(),
-                    valueText =
-                    when (uiState.gestureDuration) {
-                        100L -> "Fastest"
-                        200L -> "Fast"
-                        300L -> "Medium"
-                        400L -> "Slow"
-                        500L -> "Slowest"
-                        else -> ""
-                    },
+                    valueText = "${uiState.gestureDuration} ms",
                     onValueChange = { value ->
                         viewModel.updatePreference(value) { settings, v ->
                             settings.copy(gestureDuration = v.toLong())
@@ -203,30 +185,58 @@ fun SettingsScreen(
                     title = "Scroll Distance",
                     value = uiState.scrollMultiplier,
                     valueRange = GestureConstants.MIN_SCROLL_MULTIPLIER..GestureConstants.MAX_SCROLL_MULTIPLIER,
-                    valueText =
-                    when (round(uiState.scrollMultiplier * 10) / 10) {
-                        0.3f -> "Shortest"
-                        0.4f -> "Short"
-                        0.5f -> "Medium"
-                        0.6f -> "Long"
-                        0.7f -> "Longest"
-                        else -> ""
-                    },
+                    valueText = "${round(uiState.scrollMultiplier * 100).toInt()}% of axis at most",
                     onValueChange = { value ->
                         viewModel.updatePreference(value) { settings, v ->
                             settings.copy(scrollMultiplier = v)
                         }
                     },
-                    steps = 3,
+                    steps = 6,
+                )
+
+                SwitchPreferenceItem(
+                    title = "Gesture Visualization",
+                    subtitle = "Show gestures on screen",
+                    checked = uiState.showGestureVisualization,
+                    onCheckedChange = { value ->
+                        viewModel.updatePreference(value) { settings, v ->
+                            settings.copy(showGestureVisualization = v)
+                        }
+                    },
+                )
+
+                SliderPreferenceItem(
+                    title = "Gesture Visualization Size",
+                    value = uiState.visualSize.toFloat(),
+                    valueRange = GestureConstants.MIN_SIZE.toFloat()..GestureConstants.MAX_SIZE.toFloat(),
+                    valueText = uiState.visualSize.toString(),
+                    onValueChange = { value ->
+                        viewModel.updatePreference(value) { settings, v ->
+                            settings.copy(visualSize = v.toInt())
+                        }
+                    },
+                    steps = 8,
+                    enabled = uiState.showGestureVisualization
                 )
             }
 
             PreferenceCategory(title = "Behavior") {
-                SwitchPreferenceItem(
+                DropdownPreferenceItem(
                     title = "Auto-Hide in Text Fields",
-                    subtitle = "Attempt to detect text fields and temporarily hide cursor",
-                    checked = uiState.hideOnTextField,
-                    onCheckedChange = { value ->
+                    subtitle =
+                    when (uiState.hideOnTextField) {
+                        AutoHideDetection.NONE -> "Do not auto-hide cursor"
+                        AutoHideDetection.RESTORE_ON_FOCUS_LOST -> "Restore cursor on text field exit"
+                        AutoHideDetection.RESTORE_ON_ENTER -> "Restore cursor after pressing enter"
+                    },
+                    selectedOption = uiState.hideOnTextField,
+                    options =
+                    listOf(
+                        AutoHideDetection.NONE to "Disabled",
+                        AutoHideDetection.RESTORE_ON_FOCUS_LOST to "Text field exit",
+                        AutoHideDetection.RESTORE_ON_ENTER to "Text field submit"
+                    ),
+                    onOptionSelected = { value ->
                         viewModel.updatePreference(value) { settings, v ->
                             settings.copy(hideOnTextField = v)
                         }
@@ -247,7 +257,7 @@ fun SettingsScreen(
             PreferenceCategory(title = "Advanced") {
                 NavigationItem(
                     title = "Developer Options",
-                    subtitle = "Additional features for non-standard operation",
+                    subtitle = "Additional non-standard features",
                     onClick = onNavigateToDebugOptions
                 )
             }
@@ -349,6 +359,7 @@ fun SliderPreferenceItem(
     valueText: String,
     steps: Int = 0,
     onValueChange: (Float) -> Unit,
+    enabled: Boolean = true
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -367,6 +378,7 @@ fun SliderPreferenceItem(
                 onValueChange = onValueChange,
                 valueRange = valueRange,
                 steps = steps,
+                enabled = enabled
             )
         }
     }
@@ -549,7 +561,7 @@ fun SetKeyPreferenceItem(
 ) {
     val subtitle =
         if (currentKeyCode == OverlaySettings.KEY_NONE) {
-            "Feature disabled (no key set)"
+            "Cursor is not mapped internally"
         } else {
             "Current: ${KeyEvent.keyCodeToString(currentKeyCode)}"
         }
@@ -570,7 +582,7 @@ fun ClearKeyPreferenceItem(
 ) {
     PreferenceItem(
         title = title,
-        subtitle = "Disables $mode mode",
+        subtitle = "Unmaps $mode mode",
         onClick = if (isEnabled) onClearKey else null,
     )
 }

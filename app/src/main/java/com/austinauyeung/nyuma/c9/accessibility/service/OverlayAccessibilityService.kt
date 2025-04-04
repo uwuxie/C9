@@ -20,16 +20,15 @@ import com.austinauyeung.nyuma.c9.C9
 import com.austinauyeung.nyuma.c9.accessibility.coordinator.AccessibilityServiceManager
 import com.austinauyeung.nyuma.c9.accessibility.coordinator.OverlayModeCoordinator
 import com.austinauyeung.nyuma.c9.accessibility.ui.OverlayUIManager
+import com.austinauyeung.nyuma.c9.common.domain.AutoHideDetection
 import com.austinauyeung.nyuma.c9.common.domain.OrientationHandler
 import com.austinauyeung.nyuma.c9.core.logs.Logger
-import com.austinauyeung.nyuma.c9.settings.domain.OverlaySettings
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -48,7 +47,6 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
     private lateinit var serviceJob: Job
     private lateinit var backgroundScope: CoroutineScope
     private lateinit var mainScope: CoroutineScope
-    private lateinit var ioScope: CoroutineScope
 
     private val coroutineExceptionHandler =
         CoroutineExceptionHandler { _, exception ->
@@ -62,6 +60,9 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
     private var lastCursorPosition: Offset? = null
     private var lastOverlayType: OverlayModeCoordinator.OverlayMode? = null
     private var hidingCursor: Boolean = false
+
+    private val keysPressed: MutableSet<Int> = mutableSetOf()
+    private var isTextField: Boolean = false
 
     // Taking some guesses here and may need to revise
     private val submissionKeys = setOf(
@@ -80,17 +81,23 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 ACTION_ACTIVATE_GRID -> {
-                    ioScope.launch {
-                        val settings = C9.getInstance().settingsRepository.getSettings().first()
-                        if (settings.gridActivationKey == OverlaySettings.KEY_NONE) return@launch
+                    backgroundScope.launch {
                         serviceManager.activateGridMode()
                     }
                 }
+                ACTION_RESET_GRID -> {
+                    backgroundScope.launch {
+                        serviceManager.resetGrid()
+                    }
+                }
                 ACTION_ACTIVATE_CURSOR -> {
-                    ioScope.launch {
-                        val settings = C9.getInstance().settingsRepository.getSettings().first()
-                        if (settings.cursorActivationKey == OverlaySettings.KEY_NONE) return@launch
+                    backgroundScope.launch {
                         serviceManager.activateCursorMode()
+                    }
+                }
+                ACTION_TOGGLE_CURSOR -> {
+                    backgroundScope.launch {
+                        serviceManager.toggleCursorScroll()
                     }
                 }
             }
@@ -105,7 +112,9 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
         }
 
         const val ACTION_ACTIVATE_GRID = "com.austinauyeung.nyuma.c9.ACTION_ACTIVATE_GRID"
+        const val ACTION_RESET_GRID = "com.austinauyeung.nyuma.c9.ACTION_RESET_GRID"
         const val ACTION_ACTIVATE_CURSOR = "com.austinauyeung.nyuma.c9.ACTION_ACTIVATE_CURSOR"
+        const val ACTION_TOGGLE_CURSOR = "com.austinauyeung.nyuma.c9.ACTION_TOGGLE_CURSOR"
 
         fun activateGridCursor(context: Context) {
             val intent = Intent(ACTION_ACTIVATE_GRID)
@@ -117,8 +126,28 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
             }
         }
 
+        fun resetGrid(context: Context) {
+            val intent = Intent(ACTION_RESET_GRID)
+            intent.setPackage(context.packageName)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.sendBroadcast(intent, null)
+            } else {
+                context.sendBroadcast(intent)
+            }
+        }
+
         fun activateStandardCursor(context: Context) {
             val intent = Intent(ACTION_ACTIVATE_CURSOR)
+            intent.setPackage(context.packageName)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.sendBroadcast(intent, null)
+            } else {
+                context.sendBroadcast(intent)
+            }
+        }
+
+        fun toggleCursorScroll(context: Context) {
+            val intent = Intent(ACTION_TOGGLE_CURSOR)
             intent.setPackage(context.packageName)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 context.sendBroadcast(intent, null)
@@ -139,12 +168,11 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
             serviceJob = SupervisorJob()
             backgroundScope = CoroutineScope(Dispatchers.Default + serviceJob + coroutineExceptionHandler)
             mainScope = CoroutineScope(Dispatchers.Main + serviceJob + coroutineExceptionHandler)
-            ioScope = CoroutineScope(Dispatchers.IO + serviceJob + coroutineExceptionHandler)
 
             val settingsFlow = C9.getInstance().getSettingsFlow()
 
             windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-            orientationHandler = OrientationHandler(this)
+            orientationHandler = OrientationHandler(context = this, settingsFlow = settingsFlow)
 
             serviceManager = AccessibilityServiceManager(
                 service = this,
@@ -170,7 +198,9 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
 
             val filter = IntentFilter().apply {
                 addAction(ACTION_ACTIVATE_GRID)
+                addAction(ACTION_RESET_GRID)
                 addAction(ACTION_ACTIVATE_CURSOR)
+                addAction(ACTION_TOGGLE_CURSOR)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -206,29 +236,46 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
     }
 
     private fun restoreCursor() {
-        when (lastOverlayType) {
-            OverlayModeCoordinator.OverlayMode.GRID -> {
-                serviceManager.activateGridMode()
-            }
+        val settings = C9.getInstance().getSettingsFlow().value
+        if (hidingCursor &&
+            (settings.hideOnTextField == AutoHideDetection.RESTORE_ON_ENTER ||
+                    (settings.hideOnTextField == AutoHideDetection.RESTORE_ON_FOCUS_LOST &&
+                            keysPressed.isEmpty() && !isTextField))) {
+            when (lastOverlayType) {
+                OverlayModeCoordinator.OverlayMode.GRID -> {
+                    serviceManager.activateGridMode()
+                }
 
-            OverlayModeCoordinator.OverlayMode.CURSOR -> {
-                serviceManager.activateCursorMode(lastCursorPosition)
-            }
+                OverlayModeCoordinator.OverlayMode.CURSOR -> {
+                    serviceManager.activateCursorMode(lastCursorPosition)
+                }
 
-            else -> {}
+                else -> {}
+            }
+            lastCursorPosition = null
+            lastOverlayType = null
+            hidingCursor = false
         }
-        lastCursorPosition = null
-        lastOverlayType = null
-        hidingCursor = false
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        val settingsFlow = C9.getInstance().getSettingsFlow()
-        if (settingsFlow.value.hideOnTextField) {
+        val settings = C9.getInstance().getSettingsFlow().value
+        if (settings.hideOnTextField != AutoHideDetection.NONE) {
             event?.let{
-                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-                    val isKeyboardActivated = event.className?.toString() == "android.inputmethodservice.SoftInputWindow"
-                    if (isKeyboardActivated && !hidingCursor) autoHideCursor()
+                when (event.eventType) {
+                    // For any detection method, hide keyboard when it opens
+                    AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                        val isKeyboardActivated = event.className?.toString() == "android.inputmethodservice.SoftInputWindow"
+                        if (isKeyboardActivated && !hidingCursor) autoHideCursor()
+                    }
+
+                    AccessibilityEvent.TYPE_VIEW_FOCUSED -> {
+                        if (settings.hideOnTextField == AutoHideDetection.RESTORE_ON_FOCUS_LOST) {
+                            isTextField = (event.source?.className?.contains("EditText") == true) || (event.source?.isEditable == true)
+                            if (hidingCursor && !isTextField) restoreCursor()
+                        }
+                    }
+                    else -> {}
                 }
             }
         }
@@ -238,11 +285,26 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
     override fun onInterrupt() {}
 
     override fun onKeyEvent(event: KeyEvent?): Boolean {
+        val settings = C9.getInstance().getSettingsFlow().value
         if (hidingCursor) {
-            if (event?.keyCode in submissionKeys && event?.action == KeyEvent.ACTION_UP) {
+            if (settings.hideOnTextField == AutoHideDetection.RESTORE_ON_ENTER &&
+                event?.keyCode in submissionKeys &&
+                event?.action == KeyEvent.ACTION_UP) {
                 Logger.d("Enter key pressed, assuming form submission")
                 restoreCursor()
                 return false
+            }
+
+            if (settings.hideOnTextField == AutoHideDetection.RESTORE_ON_FOCUS_LOST) {
+                if (event?.action == KeyEvent.ACTION_DOWN) {
+                    keysPressed.add(event.keyCode)
+                } else if (event?.action == KeyEvent.ACTION_UP) {
+                    keysPressed.remove(event.keyCode)
+                    if (keysPressed.isEmpty()) {
+                        restoreCursor()
+                        return false
+                    }
+                }
             }
         }
 
@@ -268,10 +330,6 @@ class OverlayAccessibilityService : AccessibilityService(), LifecycleOwner,
 
             if (::mainScope.isInitialized) {
                 mainScope.cancel("Service destroyed")
-            }
-
-            if (::ioScope.isInitialized) {
-                ioScope.cancel("Service destroyed")
             }
 
             if (::serviceManager.isInitialized) {

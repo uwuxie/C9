@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
  * Translates inputs from either cursor mode into gestures, using Shizuku if necessary.
  */
 class GestureManager(
-    private val standardStrategy: GestureStrategy,
+    private val defaultStrategy: GestureStrategy,
     private val shizukuStrategy: GestureStrategy,
     private val settingsFlow: StateFlow<OverlaySettings>,
     private val dimensionsFlow: StateFlow<ScreenDimensions>,
@@ -32,8 +32,15 @@ class GestureManager(
     private val _gesturePaths = MutableStateFlow<List<GesturePath>>(emptyList())
     val gesturePaths: StateFlow<List<GesturePath>> = _gesturePaths.asStateFlow()
 
-    private var currentStrategy: GestureStrategy = standardStrategy
+    private var currentStrategy: GestureStrategy = defaultStrategy
     private var shizukuObserverJob: Job? = null
+
+    private val _isReady = MutableStateFlow(true)
+    val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
+
+    fun setGestureReady(ready: Boolean) {
+        _isReady.value = ready
+    }
 
     init {
         evaluateStrategy()
@@ -60,7 +67,7 @@ class GestureManager(
             shizukuStrategy
         } else {
             Logger.d("Using standard gesture strategy")
-            standardStrategy
+            defaultStrategy
         }
     }
 
@@ -72,19 +79,35 @@ class GestureManager(
             return false
         }
 
-        val isReady = ShizukuServiceConnection.isReady(forceRefresh = true)
-        Logger.d("Shizuku ready status: $isReady")
-        return isReady
+        val isShizukuReady = ShizukuServiceConnection.isReady(forceRefresh = true)
+        Logger.d("Shizuku ready status: $isShizukuReady")
+        return isShizukuReady
     }
 
-    suspend fun performScroll(direction: ScrollDirection, startX: Float, startY: Float, forceFixedScroll: Boolean = false): Boolean {
+    private val completionListener = object : GestureCompletionListener {
+        override fun onGestureCompleted(success: Boolean) {
+            setGestureReady(true)
+        }
+    }
+
+    suspend fun performScroll(
+        direction: ScrollDirection,
+        startX: Float = dimensionsFlow.value.width / 2f,
+        startY: Float = dimensionsFlow.value.height / 2f,
+        duration: Long = settingsFlow.value.gestureDuration,
+        useNaturalScrolling: Boolean = settingsFlow.value.useNaturalScrolling,
+        forceFixedScroll: Boolean = false,
+        distanceFactor: Float = settingsFlow.value.scrollMultiplier
+    ): Boolean {
+        if (!_isReady.value) return false
+        setGestureReady(false)
+
         val dimensions = dimensionsFlow.value
         try {
             Logger.d("Performing scroll gesture in direction $direction at position ($startX, $startY)")
-            val settings = settingsFlow.value
 
             // Calculate motion direction based on natural scrolling setting
-            val motionDirection = if (!settings.useNaturalScrolling) {
+            val motionDirection = if (!useNaturalScrolling) {
                 when (direction) {
                     ScrollDirection.UP -> ScrollDirection.DOWN
                     ScrollDirection.DOWN -> ScrollDirection.UP
@@ -95,8 +118,10 @@ class GestureManager(
                 direction
             }
 
-            val distanceFactor = settings.scrollMultiplier
-            val distance = dimensions.percentOfSmallerDimension(distanceFactor)
+            val distance = when (motionDirection) {
+                ScrollDirection.UP, ScrollDirection.DOWN -> dimensions.percentOfDimension(true, distanceFactor)
+                ScrollDirection.LEFT, ScrollDirection.RIGHT -> dimensions.percentOfDimension(false, distanceFactor)
+            }
 
             var (endX, endY) = when (motionDirection) {
                 ScrollDirection.UP -> Pair(startX, startY - distance)
@@ -109,17 +134,24 @@ class GestureManager(
             endY = endY.coerceIn(0f, dimensions.height.toFloat())
 
             if (shouldShowGestures) {
-                visualizeScroll(direction, startX, startY, endX, endY)
+                visualizeScroll(direction, startX, startY, endX, endY, duration)
             }
 
-            return currentStrategy.performScroll(startX, startY, endX, endY, forceFixedScroll)
+            val result = currentStrategy.performScroll(startX, startY, endX, endY, forceFixedScroll, duration, completionListener)
+            delay(duration)
+
+            return result
         } catch (e: Exception) {
             Logger.e("Error performing scroll gesture", e)
+            setGestureReady(true)
             return false
         }
     }
 
     suspend fun performZoom(isZoomIn: Boolean, startX: Float, startY: Float): Boolean {
+        if (!_isReady.value) return false
+        setGestureReady(false)
+
         val dimensions = dimensionsFlow.value
         try {
             Logger.d("Performing ${if (isZoomIn) "zoom in" else "zoom out"} gesture at ($startX, $startY)")
@@ -163,10 +195,12 @@ class GestureManager(
                 startX1, startY1,
                 startX2, startY2,
                 endX1, endY1,
-                endX2, endY2
+                endX2, endY2,
+                completionListener
             )
         } catch (e: Exception) {
             Logger.e("Error performing zoom gesture", e)
+            setGestureReady(true)
             return false
         }
     }
@@ -223,16 +257,16 @@ class GestureManager(
         startX: Float,
         startY: Float,
         endX: Float,
-        endY: Float
+        endY: Float,
+        duration: Long
     ) {
         val gestureId = "scroll_${System.currentTimeMillis()}_$direction"
-        val settings = settingsFlow.value
 
         animateGesturePath(
             gestureId = gestureId,
             startPosition = Offset(startX, startY),
             endPosition = Offset(endX, endY),
-            duration = settings.gestureDuration,
+            duration = duration,
             type = GestureType.SCROLL,
             pathsFlow = _gesturePaths,
             coroutineScope = serviceScope

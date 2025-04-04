@@ -1,6 +1,8 @@
 package com.austinauyeung.nyuma.c9.settings.domain
 
+import com.austinauyeung.nyuma.c9.common.domain.AutoHideDetection
 import com.austinauyeung.nyuma.c9.common.domain.GestureStyle
+import com.austinauyeung.nyuma.c9.common.domain.ScreenEdgeBehavior
 import com.austinauyeung.nyuma.c9.core.constants.ApplicationConstants
 import com.austinauyeung.nyuma.c9.core.constants.CursorConstants
 import com.austinauyeung.nyuma.c9.core.constants.GridConstants
@@ -17,6 +19,7 @@ data class OverlaySettings(
     val gridLineVisibility: GridLineVisibility = Defaults.Settings.GRID_LINE_VISIBILITY,
     val useNaturalScrolling: Boolean = Defaults.Settings.USE_NATURAL_SCROLLING,
     val showGestureVisualization: Boolean = Defaults.Settings.SHOW_GESTURE_VISUAL,
+    val visualSize: Int = Defaults.Settings.VISUAL_SIZE,
     val cursorSpeed: Int = Defaults.Settings.CURSOR_SPEED,
     val cursorAcceleration: Int = Defaults.Settings.CURSOR_ACCELERATION,
     val cursorSize: Int = Defaults.Settings.CURSOR_SIZE,
@@ -24,15 +27,17 @@ data class OverlaySettings(
     val gridActivationKey: Int = Defaults.Settings.GRID_ACTIVATION_KEY,
     val cursorActivationKey: Int = Defaults.Settings.CURSOR_ACTIVATION_KEY,
     val controlScheme: ControlScheme = Defaults.Settings.CONTROL_SCHEME,
-    val cursorWrapAround: Boolean = Defaults.Settings.CURSOR_WRAP_AROUND,
+    val cursorEdgeBehavior: ScreenEdgeBehavior = Defaults.Settings.CURSOR_EDGE_BEHAVIOR,
     val gestureStyle: GestureStyle = Defaults.Settings.GESTURE_STYLE,
     val toggleHold: Boolean = Defaults.Settings.TOGGLE_HOLD,
     val gestureDuration: Long = Defaults.Settings.GESTURE_DURATION,
     val scrollMultiplier: Float = Defaults.Settings.SCROLL_MULTIPLIER,
     val allowPassthrough: Boolean = Defaults.Settings.ALLOW_PASSTHROUGH,
     val enableShizukuIntegration: Boolean = Defaults.Settings.ENABLE_SHIZUKU_INTEGRATION,
-    val hideOnTextField: Boolean = Defaults.Settings.HIDE_ON_TEXT_FIELD,
-    val rotateButtonsWithOrientation: Boolean = Defaults.Settings.ROTATE_BUTTONS_WITH_ORIENTATION
+    val hideOnTextField: AutoHideDetection = Defaults.Settings.HIDE_ON_TEXT_FIELD,
+    val rotateButtonsWithOrientation: Boolean = Defaults.Settings.ROTATE_BUTTONS_WITH_ORIENTATION,
+    val roundedCursorCorners: Boolean = Defaults.Settings.ROUNDED_CURSOR_CORNERS,
+    val usePhysicalSize: Boolean = Defaults.Settings.USE_PHYSICAL_SIZE
 ) {
     companion object {
         val DEFAULT = OverlaySettings()

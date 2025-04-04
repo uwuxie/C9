@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.austinauyeung.nyuma.c9.accessibility.service.OverlayAccessibilityService
+import com.austinauyeung.nyuma.c9.common.domain.AutoHideDetection
 import com.austinauyeung.nyuma.c9.common.domain.GestureStyle
+import com.austinauyeung.nyuma.c9.common.domain.ScreenEdgeBehavior
 import com.austinauyeung.nyuma.c9.core.logs.Logger
 import com.austinauyeung.nyuma.c9.grid.domain.GridLineVisibility
 import com.austinauyeung.nyuma.c9.settings.domain.ControlScheme
@@ -56,6 +58,7 @@ class SettingsViewModel(
                             gridLineVisibility = settings.gridLineVisibility,
                             useNaturalScrolling = settings.useNaturalScrolling,
                             showGestureVisualization = settings.showGestureVisualization,
+                            visualSize = settings.visualSize,
                             cursorSpeed = settings.cursorSpeed,
                             cursorAcceleration = settings.cursorAcceleration,
                             cursorSize = settings.cursorSize,
@@ -63,7 +66,7 @@ class SettingsViewModel(
                             gridActivationKey = settings.gridActivationKey,
                             cursorActivationKey = settings.cursorActivationKey,
                             controlScheme = settings.controlScheme,
-                            cursorWrapAround = settings.cursorWrapAround,
+                            cursorEdgeBehavior = settings.cursorEdgeBehavior,
                             gestureStyle = settings.gestureStyle,
                             toggleHold = settings.toggleHold,
                             gestureDuration = settings.gestureDuration,
@@ -71,7 +74,9 @@ class SettingsViewModel(
                             allowPassthrough = settings.allowPassthrough,
                             enableShizukuIntegration = settings.enableShizukuIntegration,
                             hideOnTextField = settings.hideOnTextField,
-                            rotateButtonsWithOrientation = settings.rotateButtonsWithOrientation
+                            rotateButtonsWithOrientation = settings.rotateButtonsWithOrientation,
+                            roundedCursorCorners = settings.roundedCursorCorners,
+                            usePhysicalSize = settings.usePhysicalSize
                         )
                     }
                 }
@@ -112,6 +117,7 @@ class SettingsViewModel(
             gridLineVisibility = _uiState.value.gridLineVisibility,
             useNaturalScrolling = _uiState.value.useNaturalScrolling,
             showGestureVisualization = _uiState.value.showGestureVisualization,
+            visualSize = _uiState.value.visualSize,
             cursorSpeed = _uiState.value.cursorSpeed,
             cursorAcceleration = _uiState.value.cursorAcceleration,
             cursorSize = _uiState.value.cursorSize,
@@ -119,7 +125,7 @@ class SettingsViewModel(
             gridActivationKey = _uiState.value.gridActivationKey,
             cursorActivationKey = _uiState.value.cursorActivationKey,
             controlScheme = _uiState.value.controlScheme,
-            cursorWrapAround = _uiState.value.cursorWrapAround,
+            cursorEdgeBehavior = _uiState.value.cursorEdgeBehavior,
             gestureStyle = _uiState.value.gestureStyle,
             toggleHold = _uiState.value.toggleHold,
             gestureDuration = _uiState.value.gestureDuration,
@@ -127,7 +133,9 @@ class SettingsViewModel(
             allowPassthrough = _uiState.value.allowPassthrough,
             enableShizukuIntegration = _uiState.value.enableShizukuIntegration,
             hideOnTextField = _uiState.value.hideOnTextField,
-            rotateButtonsWithOrientation = _uiState.value.rotateButtonsWithOrientation
+            rotateButtonsWithOrientation = _uiState.value.rotateButtonsWithOrientation,
+            roundedCursorCorners = _uiState.value.roundedCursorCorners,
+            usePhysicalSize = _uiState.value.usePhysicalSize
         )
     }
 
@@ -184,6 +192,7 @@ data class SettingsUiState(
     val gridLineVisibility: GridLineVisibility = Defaults.Settings.GRID_LINE_VISIBILITY,
     val useNaturalScrolling: Boolean = Defaults.Settings.USE_NATURAL_SCROLLING,
     val showGestureVisualization: Boolean = Defaults.Settings.SHOW_GESTURE_VISUAL,
+    val visualSize: Int = Defaults.Settings.VISUAL_SIZE,
     val showError: Boolean = false,
     val errorMessage: String = "",
     val cursorSpeed: Int = Defaults.Settings.CURSOR_SPEED,
@@ -193,13 +202,15 @@ data class SettingsUiState(
     val gridActivationKey: Int = Defaults.Settings.GRID_ACTIVATION_KEY,
     val cursorActivationKey: Int = Defaults.Settings.CURSOR_ACTIVATION_KEY,
     val controlScheme: ControlScheme = Defaults.Settings.CONTROL_SCHEME,
-    val cursorWrapAround: Boolean = Defaults.Settings.CURSOR_WRAP_AROUND,
+    val cursorEdgeBehavior: ScreenEdgeBehavior = Defaults.Settings.CURSOR_EDGE_BEHAVIOR,
     val gestureStyle: GestureStyle = Defaults.Settings.GESTURE_STYLE,
     val toggleHold: Boolean = Defaults.Settings.TOGGLE_HOLD,
     val gestureDuration: Long = Defaults.Settings.GESTURE_DURATION,
     val scrollMultiplier: Float = Defaults.Settings.SCROLL_MULTIPLIER,
     val allowPassthrough: Boolean = Defaults.Settings.ALLOW_PASSTHROUGH,
     val enableShizukuIntegration: Boolean = Defaults.Settings.ENABLE_SHIZUKU_INTEGRATION,
-    val hideOnTextField: Boolean = Defaults.Settings.HIDE_ON_TEXT_FIELD,
-    val rotateButtonsWithOrientation: Boolean = Defaults.Settings.ROTATE_BUTTONS_WITH_ORIENTATION
+    val hideOnTextField: AutoHideDetection = Defaults.Settings.HIDE_ON_TEXT_FIELD,
+    val rotateButtonsWithOrientation: Boolean = Defaults.Settings.ROTATE_BUTTONS_WITH_ORIENTATION,
+    val roundedCursorCorners: Boolean = Defaults.Settings.ROUNDED_CURSOR_CORNERS,
+    val usePhysicalSize: Boolean = Defaults.Settings.USE_PHYSICAL_SIZE
 )
