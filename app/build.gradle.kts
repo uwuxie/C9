@@ -66,4 +66,6 @@ dependencies {
     implementation(libs.androidx.savedstate.ktx)
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
+    implementation("io.coil-kt:coil-compose:2.4.0")
+    implementation("io.coil-kt:coil-gif:2.4.0") // Add this for GIF support
 }
